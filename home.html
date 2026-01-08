@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>FLUX | Next Gen Betting</title>
+    
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap" rel="stylesheet">
+
+    <script>
+        // --- AUTH CHECK (Runs immediately) ---
+        const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+        if (!currentUser) {
+            window.location.href = 'index.html'; // Go back to login if not signed in
+        }
+
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { 
+                        sans: ['Inter', 'sans-serif'],
+                        mono: ['JetBrains Mono', 'monospace'],
+                    },
+                    colors: { obsidian: '#050505', surface: '#121212', cyan: '#22d3ee', violet: '#7c3aed', rose: '#f43f5e', gold: '#fbbf24' },
+                    backgroundImage: {
+                        'cyber-grid': "radial-gradient(circle, rgba(34,211,238,0.1) 1px, transparent 1px)",
+                    },
+                    backgroundSize: {
+                        'cyber-grid': '20px 20px'
+                    },
+                    animation: {
+                        'blob': 'blob 7s infinite',
+                        'float': 'float 6s ease-in-out infinite',
+                        'pulse-glow': 'pulseGlow 2s infinite',
+                        'rocket-shake': 'shake 0.5s infinite',
+                    },
+                    keyframes: {
+                        blob: {
+                            '0%': { transform: 'translate(0px, 0px) scale(1)' },
+                            '33%': { transform: 'translate(30px, -50px) scale(1.1)' },
+                            '66%': { transform: 'translate(-20px, 20px) scale(0.9)' },
+                            '100%': { transform: 'translate(0px, 0px) scale(1)' },
+                        },
+                        float: {
+                            '0%, 100%': { transform: 'translateY(0)' },
+                            '50%': { transform: 'translateY(-10px)' },
+                        },
+                        shake: {
+                            '0%, 100%': { transform: 'translate(0, 0) rotate(45deg)' },
+                            '25%': { transform: 'translate(1px, 1px) rotate(45deg)' },
+                            '50%': { transform: 'translate(-1px, -1px) rotate(45deg)' },
+                            '75%': { transform: 'translate(1px, -1px) rotate(45deg)' },
+                        }
+                    }
+                }
+            }
+        }
+    </script>
+
+    <style>
+        .scrollbar-hide::-webkit-scrollbar { display: none; }
+        .glass { background: rgba(255, 255, 255, 0.03); backdrop-filter: blur(10px); border: 1px solid rgba(255, 255, 255, 0.08); }
+        .nav-glass { background: rgba(5, 5, 5, 0.9); backdrop-filter: blur(20px); border: 1px solid rgba(255, 255, 255, 0.1); }
+        .input-dark { background: #0a0a0a; border: 1px solid #222; transition: all 0.3s; }
+        .input-dark:focus { border-color: #22d3ee; box-shadow: 0 0 15px rgba(34, 211, 238, 0.1); outline: none; }
+        .app-view { display: none; opacity: 0; transition: opacity 0.2s ease; }
+        .app-view.active { display: block; opacity: 1; }
+        
+        /* Toast Notification */
+        #toast-container { position: fixed; top: 20px; left: 50%; transform: translateX(-50%); z-index: 200; pointer-events: none; width: 90%; max-width: 400px; }
+        .toast { background: rgba(20, 20, 20, 0.95); backdrop-filter: blur(10px); color: white; padding: 12px 20px; border-radius: 99px; margin-bottom: 10px; opacity: 0; transform: translateY(-20px); transition: all 0.3s; display: flex; items-center; gap: 10px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 30px rgba(0,0,0,0.5); font-size: 13px; font-weight: 600; }
+        .toast.show { opacity: 1; transform: translateY(0); }
+    </style>
+</head>
+<body class="bg-obsidian text-white font-sans overflow-x-hidden antialiased pb-32 selection:bg-cyan selection:text-black">
+
+    <div id="toast-container"></div>
+
+    <div id="loader" class="fixed inset-0 z-[100] bg-obsidian flex items-center justify-center">
+        <div class="relative flex flex-col items-center">
+            <div class="w-16 h-16 bg-gradient-to-tr from-cyan to-violet rounded-xl animate-spin flex items-center justify-center mb-4 shadow-[0_0_40px_rgba(34,211,238,0.5)]">
+                <div class="w-10 h-10 bg-obsidian rounded-lg"></div>
+            </div>
+            <h1 class="text-2xl font-black italic tracking-tighter text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500 animate-pulse">LOADING FLUX...</h1>
+        </div>
+    </div>
+
+    <div id="view-home" class="app-view active">
+        <header class="sticky top-0 z-40 bg-obsidian/80 backdrop-blur-xl border-b border-white/5 px-5 py-4 flex items-center justify-between">
+            <div class="flex items-center gap-2" onclick="showToast('Version 1.0.5 Beta')">
+                <div class="w-8 h-8 rounded-lg bg-gradient-to-tr from-cyan to-violet flex items-center justify-center font-bold text-obsidian italic transform -skew-x-12 shadow-[0_0_15px_rgba(34,211,238,0.4)]">F</div>
+                <span class="text-xl font-black tracking-tighter italic bg-clip-text text-transparent bg-gradient-to-r from-white to-gray-400">FLUX</span>
+            </div>
+            <div class="flex items-center gap-3">
+                <div class="flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                    <span class="text-[10px] text-gray-500 font-bold uppercase">BAL</span>
+                    <span id="header-balance" class="text-xs font-mono font-bold text-cyan">$0.00</span>
+                </div>
+                
+                <div class="hidden sm:flex items-center gap-2 bg-white/5 px-3 py-1.5 rounded-full border border-white/5">
+                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                    <span class="text-xs font-mono font-bold text-gray-400">9,204</span>
+                </div>
+                <button onclick="switchView('notifications')" class="w-10 h-10 glass rounded-full flex items-center justify-center hover:bg-white/10 transition relative active:scale-95 group">
+                    <i data-lucide="bell" class="w-5 h-5 text-gray-400 group-hover:text-white transition"></i>
+                    <span class="absolute top-2 right-2 w-2 h-2 bg-rose-500 rounded-full shadow-[0_0_8px_rgba(244,63,94,0.6)]"></span>
+                </button>
+            </div>
+        </header>
+
+        <nav class="flex gap-3 overflow-x-auto px-5 py-4 scrollbar-hide">
+            <button onclick="filterGames('All')" class="whitespace-nowrap px-6 py-2 rounded-full text-xs font-bold uppercase bg-white text-black shadow-[0_0_15px_rgba(255,255,255,0.3)] hover:scale-105 transition">Lobby</button>
+            <button onclick="filterGames('Slots')" class="whitespace-nowrap px-6 py-2 rounded-full text-xs font-bold uppercase bg-surface border border-white/10 text-gray-400 hover:text-white hover:border-white/30 transition">Slots</button>
+            <button onclick="filterGames('Table')" class="whitespace-nowrap px-6 py-2 rounded-full text-xs font-bold uppercase bg-surface border border-white/10 text-gray-400 hover:text-white hover:border-white/30 transition">Live</button>
+            <button onclick="filterGames('Sports')" class="whitespace-nowrap px-6 py-2 rounded-full text-xs font-bold uppercase bg-surface border border-white/10 text-gray-400 hover:text-white hover:border-white/30 transition">Sports</button>
+        </nav>
+
+        <section class="px-5 mb-8">
+            <div onclick="switchView('wallet')" class="w-full relative h-64 rounded-[2rem] overflow-hidden shadow-2xl group cursor-pointer border border-white/10 transform transition active:scale-[0.98]">
+                <div class="absolute inset-0 bg-obsidian"></div>
+                <div class="absolute inset-0 bg-cyber-grid opacity-30"></div>
+                <div class="absolute top-[-50%] left-[-20%] w-96 h-96 bg-cyan/20 rounded-full blur-[80px] animate-blob"></div>
+                <div class="absolute bottom-[-50%] right-[-20%] w-96 h-96 bg-violet/20 rounded-full blur-[80px] animate-blob animation-delay-2000"></div>
+                
+                <div class="relative z-10 h-full flex flex-col justify-center px-8 animate-float">
+                    <div class="flex items-center gap-2 mb-2">
+                         <span class="px-3 py-1 bg-cyan/20 backdrop-blur-md rounded border border-cyan/30 text-cyan text-[10px] font-bold tracking-[0.2em] uppercase shadow-[0_0_10px_rgba(34,211,238,0.2)]">New User</span>
+                         <span class="text-xs text-gray-400 font-mono">CODE: FLUX2026</span>
+                    </div>
+                   
+                    <h2 class="text-5xl font-black italic leading-[0.9] text-white mix-blend-overlay opacity-50 absolute right-4 top-4 select-none">500%</h2>
+                    
+                    <h2 class="text-4xl font-black italic leading-none mb-1 text-white">DOUBLE<br>YOUR <span class="text-transparent bg-clip-text bg-gradient-to-r from-cyan to-white drop-shadow-[0_0_15px_rgba(34,211,238,0.5)]">STAKE</span></h2>
+                    
+                    <p class="text-sm text-gray-300 mb-6 max-w-[200px]">Get up to $500 bonus on your first crypto deposit.</p>
+                    
+                    <button class="px-8 py-3 bg-white text-black rounded-xl font-bold text-sm hover:scale-105 active:scale-95 transition-transform shadow-[0_0_30px_rgba(255,255,255,0.3)] self-start flex items-center gap-2 group">
+                        Deposit Now <i data-lucide="zap" class="w-4 h-4 fill-black group-hover:text-cyan transition-colors"></i>
+                    </button>
+                </div>
+            </div>
+        </section>
+
+        <section class="px-5 mb-8">
+            <div class="flex items-center justify-between mb-4">
+                <div class="flex items-center gap-2">
+                    <span class="relative flex h-2 w-2">
+                        <span class="animate-ping absolute inline-flex h-full w-full rounded-full bg-green-400 opacity-75"></span>
+                        <span class="relative inline-flex rounded-full h-2 w-2 bg-green-500"></span>
+                    </span>
+                    <h3 class="text-xs font-bold text-gray-500 uppercase tracking-[0.2em]">Live Wins</h3>
+                </div>
+                <div class="text-[10px] text-gray-600 font-mono">LIVE FEED CONNECTED</div>
+            </div>
+            <div id="live-ticker" class="space-y-2 max-h-[160px] overflow-hidden relative mask-image-b"></div>
+        </section>
+
+        <section class="px-5 mb-6">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="text-lg font-bold flex items-center gap-2 text-white italic">
+                    <i data-lucide="flame" class="text-rose-500 fill-rose-500" size="18"></i> Trending Now
+                </h3>
+                <button onclick="switchView('search')" class="text-xs text-cyan hover:text-white transition font-bold uppercase tracking-wider">View All</button>
+            </div>
+            <div id="home-trending-container" class="flex gap-4 overflow-x-auto pb-6 scrollbar-hide perspective-1000"></div>
+        </section>
+    </div>
+
+    <div id="view-wallet" class="app-view p-5 min-h-screen">
+        <div class="flex items-center gap-4 mb-6">
+            <button onclick="switchView('home')" class="glass p-2 rounded-full hover:bg-white/10"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
+            <h2 class="text-2xl font-black italic tracking-tighter">WALLET</h2>
+        </div>
+
+        <div class="w-full bg-gradient-to-br from-gray-900 to-black border border-white/10 p-6 rounded-[2rem] mb-6 shadow-2xl relative overflow-hidden group">
+            <div class="absolute -top-10 -right-10 w-40 h-40 bg-cyan/10 rounded-full blur-3xl group-hover:bg-cyan/20 transition duration-700"></div>
+            <div class="relative z-10 text-center">
+                <p class="text-gray-400 text-xs font-mono mb-1 uppercase tracking-widest">Total Balance</p>
+                <h3 id="wallet-balance" class="text-4xl font-black text-white mb-2 tracking-tight">$0.00</h3>
+                <p class="text-emerald-400 text-xs font-bold flex items-center justify-center gap-1"><i data-lucide="trending-up" class="w-3 h-3"></i> +2.4% today</p>
+            </div>
+        </div>
+
+        <div class="flex p-1 bg-surface border border-white/10 rounded-xl mb-6">
+            <button onclick="toggleWalletTab('deposit')" id="tab-deposit" class="flex-1 py-3 rounded-lg text-sm font-bold transition-all bg-white text-black shadow-lg">Deposit</button>
+            <button onclick="toggleWalletTab('withdraw')" id="tab-withdraw" class="flex-1 py-3 rounded-lg text-sm font-bold text-gray-500 hover:text-white transition-all">Withdraw</button>
+        </div>
+
+        <div id="section-deposit" class="animate-fade-in">
+            <div class="bg-surface border border-white/10 rounded-2xl p-6 flex flex-col items-center text-center">
+                <p class="text-xs text-gray-500 font-bold uppercase mb-4">Scan QR to Deposit (BTC)</p>
+                <div class="w-48 h-48 bg-white rounded-xl p-2 mb-6 shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+                    <div class="w-full h-full border-2 border-black relative bg-[radial-gradient(#000_2px,transparent_2px)] bg-[length:8px_8px] flex items-center justify-center">
+                         <div class="w-10 h-10 bg-black absolute inset-0 m-auto flex items-center justify-center">
+                             <div class="w-8 h-8 bg-gradient-to-tr from-orange-500 to-yellow-500 rounded-full flex items-center justify-center text-white font-bold text-xs">₿</div>
+                         </div>
+                         <div class="absolute top-0 left-0 w-8 h-8 border-t-4 border-l-4 border-black"></div>
+                         <div class="absolute top-0 right-0 w-8 h-8 border-t-4 border-r-4 border-black"></div>
+                         <div class="absolute bottom-0 left-0 w-8 h-8 border-b-4 border-l-4 border-black"></div>
+                    </div>
+                </div>
+                
+                <div class="w-full">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block text-left mb-2">Wallet Address</label>
+                    <div class="flex gap-2">
+                        <div class="flex-1 bg-black border border-white/10 rounded-xl p-3 flex items-center gap-2">
+                            <span id="btc-address" class="text-xs font-mono text-gray-300 truncate">bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh</span>
+                        </div>
+                        <button onclick="copyAddress()" class="bg-cyan/10 border border-cyan/30 text-cyan p-3 rounded-xl hover:bg-cyan hover:text-black transition">
+                            <i data-lucide="copy" class="w-5 h-5"></i>
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="section-withdraw" class="hidden animate-fade-in">
+            <div class="bg-surface border border-white/10 rounded-2xl p-6">
+                <div class="mb-4">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-2">Withdraw Amount</label>
+                    <div class="relative">
+                        <span class="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500">$</span>
+                        <input id="withdraw-amount" type="number" placeholder="0.00" class="w-full input-dark rounded-xl p-3 pl-8 text-white font-mono">
+                        <button onclick="document.getElementById('withdraw-amount').value = balance" class="absolute right-2 top-1/2 -translate-y-1/2 text-[10px] bg-white/10 hover:bg-white/20 px-2 py-1 rounded text-cyan font-bold">MAX</button>
+                    </div>
+                </div>
+                <div class="mb-8">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-2">Destination Address</label>
+                    <input type="text" placeholder="Paste wallet address" class="w-full input-dark rounded-xl p-3 text-white font-mono text-xs">
+                </div>
+                <button onclick="handleWithdraw()" class="w-full py-4 bg-gradient-to-r from-cyan to-blue-500 text-black font-black italic rounded-xl shadow-[0_0_20px_rgba(34,211,238,0.3)] hover:scale-[1.02] active:scale-[0.98] transition">CONFIRM WITHDRAWAL</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-notifications" class="app-view p-5 min-h-screen">
+        <div class="flex items-center gap-4 mb-8">
+            <button onclick="switchView('home')" class="glass p-2 rounded-full hover:bg-white/10"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
+            <h2 class="text-2xl font-black italic">NOTIFICATIONS</h2>
+        </div>
+        <div class="bg-surface border border-l-4 border-l-cyan border-white/5 rounded-xl p-4 mb-4 relative overflow-hidden">
+            <div class="flex gap-4">
+                <div class="w-10 h-10 rounded-full bg-cyan/20 flex items-center justify-center text-cyan"><i data-lucide="party-popper" class="w-5 h-5"></i></div>
+                <div>
+                    <h3 class="font-bold text-white">Welcome to FLUX!</h3>
+                    <p class="text-xs text-gray-400 mt-1">Thanks for joining. Verify your email to get 10 free spins on Cyber Slots.</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div id="view-profile" class="app-view p-5 min-h-screen">
+        <div class="flex items-center justify-between mb-8">
+            <h2 class="text-2xl font-black italic">PROFILE</h2>
+            <button onclick="showToast('Edit Mode Enabled')" class="text-xs text-gray-500 hover:text-white">Edit</button>
+        </div>
+        <div class="bg-gradient-to-br from-surface to-obsidian border border-white/10 p-6 rounded-3xl flex flex-col items-center mb-6 relative overflow-hidden">
+            <div class="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan to-violet"></div>
+            <div class="w-24 h-24 rounded-full p-1 bg-gradient-to-tr from-cyan to-violet mb-3">
+                <img src="https://api.dicebear.com/7.x/avataaars/svg?seed=Felix" class="w-full h-full rounded-full bg-obsidian" alt="Avatar">
+            </div>
+            <h3 id="profile-name" class="text-xl font-bold">NewPlayer_01</h3>
+            <span class="text-xs bg-white/10 px-3 py-1 rounded-full mt-2 text-cyan">VIP Level 1</span>
+        </div>
+        <div class="space-y-2">
+            <button onclick="showToast('Settings Saved')" class="w-full bg-surface p-4 rounded-xl flex items-center justify-between hover:bg-white/5 transition">
+                <div class="flex items-center gap-3"><i data-lucide="settings" class="w-5 h-5 text-gray-400"></i> <span>Settings</span></div>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-gray-600"></i>
+            </button>
+            <button onclick="showToast('Security Scan Complete')" class="w-full bg-surface p-4 rounded-xl flex items-center justify-between hover:bg-white/5 transition">
+                <div class="flex items-center gap-3"><i data-lucide="shield" class="w-5 h-5 text-gray-400"></i> <span>Security</span></div>
+                <i data-lucide="chevron-right" class="w-4 h-4 text-gray-600"></i>
+            </button>
+            <button onclick="handleLogout()" class="w-full bg-surface p-4 rounded-xl flex items-center justify-between hover:bg-white/5 transition group">
+                <div class="flex items-center gap-3"><i data-lucide="log-out" class="w-5 h-5 text-red-400 group-hover:text-red-500"></i> <span class="text-red-400 group-hover:text-red-500">Log Out</span></div>
+            </button>
+        </div>
+    </div>
+    
+    <div id="view-search" class="app-view p-5 min-h-screen">
+         <div class="flex items-center gap-4 mb-6">
+            <button onclick="switchView('home')" class="glass p-2 rounded-full hover:bg-white/10"><i data-lucide="arrow-left" class="w-5 h-5"></i></button>
+            <div class="flex-1 relative">
+                <i data-lucide="search" class="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-500"></i>
+                <input type="text" id="search-input" placeholder="Search games..." class="w-full bg-surface border border-white/10 rounded-full py-2 pl-10 pr-4 text-sm text-white focus:outline-none focus:border-cyan transition">
+            </div>
+        </div>
+        <div id="search-results" class="grid grid-cols-2 gap-4"></div>
+    </div>
+
+    <div id="view-crash" class="app-view min-h-screen bg-obsidian absolute inset-0 z-[60]">
+        <div class="flex items-center justify-between p-4 bg-obsidian border-b border-white/10 relative z-20">
+            <button onclick="closeGame()" class="flex items-center gap-2 text-gray-400 hover:text-white">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i> <span class="text-sm font-bold">Lobby</span>
+            </button>
+            <div class="flex items-center gap-2">
+                 <div class="flex items-center gap-1 bg-surface px-3 py-1 rounded-full border border-white/10">
+                    <span class="text-[10px] text-gray-500">BAL</span>
+                    <span id="crash-balance" class="text-sm font-mono font-bold text-white">$0.00</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="relative w-full h-[50vh] bg-surface flex flex-col items-center justify-center overflow-hidden border-b border-white/10">
+            <canvas id="crash-canvas" class="absolute inset-0 w-full h-full z-10"></canvas>
+            
+            <div class="relative z-20 text-center">
+                <h1 id="crash-multiplier" class="text-6xl font-black font-mono tracking-tighter text-white drop-shadow-[0_0_20px_rgba(255,255,255,0.2)]">1.00x</h1>
+                <p id="crash-status" class="text-cyan font-bold text-xs uppercase tracking-widest mt-2 animate-pulse">Place your bet</p>
+            </div>
+        </div>
+
+        <div class="p-5">
+            <div class="flex gap-4 mb-4">
+                <div class="flex-1">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Amount</label>
+                    <div class="relative">
+                        <input id="crash-bet-input" type="number" value="10" class="w-full bg-surface border border-white/10 rounded-xl p-3 pl-3 text-white font-mono font-bold focus:border-cyan focus:outline-none">
+                    </div>
+                    <div class="flex gap-2 mt-2">
+                        <button onclick="adjustBet(0.5)" class="flex-1 bg-white/5 rounded text-[10px] py-1 hover:bg-white/10">1/2</button>
+                        <button onclick="adjustBet(2)" class="flex-1 bg-white/5 rounded text-[10px] py-1 hover:bg-white/10">2x</button>
+                    </div>
+                </div>
+                <div class="flex-1">
+                    <label class="text-[10px] text-gray-500 font-bold uppercase block mb-1">Auto Cashout</label>
+                    <input id="crash-auto-input" type="number" value="2.00" class="w-full bg-surface border border-white/10 rounded-xl p-3 text-white font-mono font-bold focus:border-cyan focus:outline-none">
+                </div>
+            </div>
+
+            <button id="crash-action-btn" onclick="toggleCrashState()" class="w-full py-4 bg-cyan text-black font-black italic text-xl rounded-xl shadow-[0_0_20px_rgba(34,211,238,0.4)] hover:scale-[1.02] active:scale-[0.98] transition">
+                BET NOW
+            </button>
+        </div>
+    </div>
+
+    <div id="view-game" class="app-view min-h-screen bg-black absolute inset-0 z-[60]">
+        <div class="flex items-center justify-between p-4 bg-obsidian border-b border-white/10">
+            <button onclick="switchView('home')" class="flex items-center gap-2 text-gray-400 hover:text-white">
+                <i data-lucide="arrow-left" class="w-5 h-5"></i> <span class="text-sm font-bold">Exit</span>
+            </button>
+        </div>
+        <div class="relative w-full h-[calc(100vh-140px)] flex items-center justify-center overflow-hidden">
+            <div id="generic-game-bg" class="absolute inset-0 opacity-20 bg-purple-900"></div>
+            <div class="text-center z-10">
+                <div class="w-20 h-20 rounded-2xl bg-white/5 border border-white/10 backdrop-blur mb-4 mx-auto flex items-center justify-center animate-bounce">
+                    <i data-lucide="gamepad-2" class="w-10 h-10 text-white"></i>
+                </div>
+                <h1 id="generic-game-title" class="text-2xl font-black italic mb-2">GAME</h1>
+                <p class="text-gray-500 text-xs">Simulated Mode</p>
+            </div>
+        </div>
+        <div class="fixed bottom-0 w-full bg-surface border-t border-white/10 p-4 pb-8 flex justify-between items-center gap-4">
+             <button onclick="showToast('Bet Placed')" class="w-full py-3 bg-gradient-to-r from-violet-600 to-indigo-600 text-white font-bold rounded-xl shadow-lg active:scale-95 transition">PLAY</button>
+        </div>
+    </div>
+
+    <div class="fixed bottom-6 left-0 right-0 z-50 flex justify-center px-4 pointer-events-none">
+        <div class="nav-glass pointer-events-auto w-full max-w-md rounded-2xl p-2 flex justify-between items-center shadow-2xl relative">
+            <button onclick="switchView('home')" id="nav-home" class="nav-btn flex flex-col items-center justify-center w-14 gap-1 text-cyan transition-colors">
+                <i data-lucide="home" class="w-5 h-5"></i>
+                <span class="text-[10px] font-bold">Home</span>
+            </button>
+            <button onclick="switchView('search')" id="nav-search" class="nav-btn flex flex-col items-center justify-center w-14 gap-1 text-gray-500 hover:text-white transition-colors">
+                <i data-lucide="search" class="w-5 h-5"></i>
+                <span class="text-[10px] font-bold">Search</span>
+            </button>
+            
+            <div class="relative -top-10 w-16 h-16">
+                <button onclick="openCrashGame()" class="absolute inset-0 w-16 h-16 bg-gradient-to-b from-cyan to-blue-600 rounded-full flex items-center justify-center shadow-[0_0_25px_rgba(34,211,238,0.5)] border-[4px] border-obsidian transform hover:scale-110 active:scale-95 transition duration-300 group overflow-hidden">
+                    <div class="absolute inset-0 bg-gradient-to-t from-black/20 to-transparent"></div>
+                    <i data-lucide="rocket" class="w-7 h-7 text-white fill-white/20 relative z-10 transform group-hover:-rotate-45 transition"></i>
+                </button>
+            </div>
+
+            <button onclick="switchView('wallet')" id="nav-wallet" class="nav-btn flex flex-col items-center justify-center w-14 gap-1 text-gray-500 hover:text-white transition-colors">
+                <i data-lucide="wallet" class="w-5 h-5"></i>
+                <span class="text-[10px] font-bold">Wallet</span>
+            </button>
+            <button onclick="switchView('profile')" id="nav-profile" class="nav-btn flex flex-col items-center justify-center w-14 gap-1 text-gray-500 hover:text-white transition-colors">
+                <i data-lucide="user" class="w-5 h-5"></i>
+                <span class="text-[10px] font-bold">Profile</span>
+            </button>
+        </div>
+    </div>
+
+    <script>
+        lucide.createIcons();
+        let balance = parseFloat(currentUser.balance);
+
+        // --- UTILS ---
+        function showToast(msg, type='info') {
+            const container = document.getElementById('toast-container');
+            const toast = document.createElement('div');
+            toast.className = 'toast';
+            toast.innerHTML = `<i data-lucide="${type === 'error' ? 'alert-circle' : 'check-circle-2'}" class="w-4 h-4 ${type==='error'?'text-red-500':'text-cyan'}"></i> ${msg}`;
+            container.appendChild(toast);
+            lucide.createIcons();
+            
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+                toast.classList.remove('show');
+                setTimeout(() => toast.remove(), 300);
+            }, 3000);
+        }
+
+        function formatMoney(amount) {
+            return '$' + parseFloat(amount).toFixed(2);
+        }
+        
+        // --- DATA SYNC ---
+        function syncBalance(newVal) {
+            balance = newVal;
+            currentUser.balance = balance;
+            localStorage.setItem('currentUser', JSON.stringify(currentUser));
+            
+            // Sync with DB
+            const db = JSON.parse(localStorage.getItem('fluxUsers')) || {};
+            if(db[currentUser.email]) {
+                db[currentUser.email].balance = balance;
+                localStorage.setItem('fluxUsers', JSON.stringify(db));
+            }
+            updateBalanceDisplay();
+        }
+
+        // --- NAVIGATION ---
+        function switchView(viewName) {
+            document.querySelectorAll('.app-view').forEach(el => el.classList.remove('active'));
+            const target = document.getElementById('view-' + viewName);
+            if(target) target.classList.add('active');
+            else document.getElementById('view-home').classList.add('active');
+            
+            document.querySelectorAll('.nav-btn').forEach(btn => {
+                btn.classList.remove('text-cyan');
+                btn.classList.add('text-gray-500');
+            });
+            const navBtn = document.getElementById('nav-' + viewName);
+            if(navBtn) {
+                navBtn.classList.remove('text-gray-500');
+                navBtn.classList.add('text-cyan');
+            }
+            window.scrollTo(0,0);
+        }
+
+        // --- WALLET LOGIC ---
+        function toggleWalletTab(tab) {
+            const depositSec = document.getElementById('section-deposit');
+            const withdrawSec = document.getElementById('section-withdraw');
+            const tabDep = document.getElementById('tab-deposit');
+            const tabWith = document.getElementById('tab-withdraw');
+
+            if(tab === 'deposit') {
+                depositSec.classList.remove('hidden');
+                withdrawSec.classList.add('hidden');
+                tabDep.className = "flex-1 py-3 rounded-lg text-sm font-bold transition-all bg-white text-black shadow-lg";
+                tabWith.className = "flex-1 py-3 rounded-lg text-sm font-bold text-gray-500 hover:text-white transition-all";
+            } else {
+                depositSec.classList.add('hidden');
+                withdrawSec.classList.remove('hidden');
+                tabWith.className = "flex-1 py-3 rounded-lg text-sm font-bold transition-all bg-white text-black shadow-lg";
+                tabDep.className = "flex-1 py-3 rounded-lg text-sm font-bold text-gray-500 hover:text-white transition-all";
+            }
+        }
+
+        function copyAddress() {
+            const addr = document.getElementById('btc-address').innerText;
+            navigator.clipboard.writeText(addr);
+            showToast('Address copied to clipboard');
+        }
+
+        function handleWithdraw() {
+            const amt = parseFloat(document.getElementById('withdraw-amount').value);
+            if(!amt || amt <= 0) return showToast('Invalid amount', 'error');
+            if(amt > balance) return showToast('Insufficient balance', 'error');
+            
+            showToast('Processing withdrawal...');
+            setTimeout(() => {
+                syncBalance(balance - amt);
+                showToast(`Withdrew ${formatMoney(amt)} successfully`);
+                document.getElementById('withdraw-amount').value = '';
+                switchView('home');
+            }, 1500);
+        }
+
+        function handleLogout() {
+            if(confirm("Are you sure you want to log out?")) {
+                localStorage.removeItem('currentUser');
+                showToast("Logging out...");
+                setTimeout(() => window.location.href = 'index.html', 1000);
+            }
+        }
+
+        function updateBalanceDisplay() {
+            const fmt = formatMoney(balance);
+            document.getElementById('wallet-balance').innerText = fmt;
+            document.getElementById('crash-balance').innerText = fmt;
+            document.getElementById('header-balance').innerText = fmt;
+        }
+
+        // --- GAMES DATA ---
+        const gamesList = [
+            { name: "Crash X", type: "Original", color: "bg-obsidian", from: "from-gray-900", to: "to-black", players: 2400, hot: true, isCrash: true },
+            { name: "Cyber Slots", type: "Slots", color: "bg-purple-600", from: "from-purple-900", to: "to-indigo-900", players: 1420, hot: true },
+            { name: "Neon Blackjack", type: "Table", color: "bg-emerald-600", from: "from-emerald-900", to: "to-teal-900", players: 850, hot: true },
+            { name: "Plinko Galaxy", type: "Instant", color: "bg-pink-600", from: "from-pink-900", to: "to-purple-900", players: 540, hot: false },
+        ];
+
+        // --- RENDER GAMES ---
+        function renderGames(list, containerId) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = list.map(g => `
+                <div onclick="${g.isCrash ? 'openCrashGame()' : `openGenericGame('${g.name}', '${g.color}')`}" class="min-w-[160px] group cursor-pointer relative">
+                    <div class="h-[220px] w-full rounded-2xl bg-gradient-to-br ${g.from} ${g.to} relative overflow-hidden shadow-lg border border-white/5 transition-all duration-300 group-hover:-translate-y-2 group-hover:shadow-[0_0_20px_rgba(255,255,255,0.1)]">
+                         <div class="absolute inset-0 opacity-40 mix-blend-overlay" style="background-image: radial-gradient(circle at 10px 10px, rgba(255,255,255,0.1) 2px, transparent 0); background-size: 20px 20px;"></div>
+                        
+                        <div class="absolute top-2 left-2 flex gap-1 z-10">
+                            ${g.isCrash ? `<span class="bg-gold text-black text-[9px] font-black px-1.5 py-0.5 rounded shadow-lg flex items-center gap-1"><i data-lucide="crown" class="w-3 h-3 fill-black"></i> MAIN</span>` : ''}
+                            ${g.hot && !g.isCrash ? `<span class="bg-rose-500 text-white text-[9px] font-black px-1.5 py-0.5 rounded shadow-lg flex items-center gap-1"><i data-lucide="flame" class="w-2 h-2 fill-white"></i> HOT</span>` : ''}
+                        </div>
+                        
+                        <div class="absolute inset-0 flex flex-col items-center justify-center transition-opacity duration-300 group-hover:opacity-100">
+                             ${g.isCrash ? 
+                                `<i data-lucide="rocket" class="w-12 h-12 text-white transform group-hover:-translate-y-2 transition duration-500"></i>` : 
+                                `<div class="w-12 h-12 bg-white/10 backdrop-blur-md rounded-2xl flex items-center justify-center border border-white/20 shadow-[0_0_15px_rgba(0,0,0,0.5)] group-hover:scale-110 transition"><i data-lucide="play" class="w-5 h-5 fill-white text-white ml-1"></i></div>`
+                             }
+                        </div>
+                        
+                        <div class="absolute bottom-0 left-0 w-full p-3 bg-gradient-to-t from-black/90 to-transparent">
+                            <p class="text-sm font-bold text-white leading-tight">${g.name}</p>
+                            <p class="text-[10px] text-gray-400 uppercase tracking-wide mt-0.5">${g.type}</p>
+                        </div>
+                    </div>
+                </div>
+            `).join('');
+            lucide.createIcons();
+        }
+
+        renderGames(gamesList, 'home-trending-container');
+        
+        // Search Logic
+        document.getElementById('search-input').addEventListener('input', (e) => {
+            const term = e.target.value.toLowerCase();
+            const filtered = gamesList.filter(g => g.name.toLowerCase().includes(term));
+            renderGames(filtered, 'search-results');
+        });
+        renderGames(gamesList, 'search-results');
+
+        function filterGames(category) {
+            showToast(`Filtering: ${category}`);
+        }
+
+        // --- GENERIC GAME LOGIC ---
+        function openGenericGame(name, color) {
+            document.getElementById('generic-game-title').innerText = name.toUpperCase();
+            document.getElementById('generic-game-bg').className = `absolute inset-0 opacity-20 ${color}`;
+            switchView('game');
+        }
+
+        // --- CRASH GAME LOGIC (PHYSICS ENGINE) ---
+        let crashState = 'idle'; // idle, running, crashed
+        let crashMultiplier = 1.00;
+        let crashInterval;
+        let crashCanvas = document.getElementById('crash-canvas');
+        let ctx = crashCanvas.getContext('2d');
+        let currentBet = 0;
+
+        function openCrashGame() {
+            switchView('crash');
+            resizeCanvas();
+            drawGraph();
+            updateBalanceDisplay();
+        }
+
+        function closeGame() {
+            if(crashState === 'running') {
+                showToast("Cannot exit while game is running", "error");
+                return;
+            }
+            switchView('home');
+        }
+
+        function resizeCanvas() {
+            crashCanvas.width = crashCanvas.parentElement.offsetWidth;
+            crashCanvas.height = crashCanvas.parentElement.offsetHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function adjustBet(factor) {
+            const input = document.getElementById('crash-bet-input');
+            let val = parseFloat(input.value) * factor;
+            if(val < 1) val = 1;
+            input.value = val.toFixed(2);
+        }
+
+        function toggleCrashState() {
+            const btn = document.getElementById('crash-action-btn');
+            const input = document.getElementById('crash-bet-input');
+            const betAmount = parseFloat(input.value);
+
+            if (crashState === 'idle' || crashState === 'crashed') {
+                // START GAME
+                if (betAmount > balance) return showToast("Insufficient Balance", "error");
+                
+                syncBalance(balance - betAmount);
+                currentBet = betAmount;
+                
+                crashState = 'running';
+                crashMultiplier = 1.00;
+                btn.innerText = "CASHOUT";
+                btn.className = "w-full py-4 bg-gold text-black font-black italic text-xl rounded-xl shadow-[0_0_20px_rgba(251,191,36,0.4)] hover:scale-[1.02] transition";
+                
+                runCrashGame();
+            } else if (crashState === 'running') {
+                // CASH OUT
+                const win = currentBet * crashMultiplier;
+                syncBalance(balance + win);
+                showToast(`Cashed out: ${formatMoney(win)}`, "success");
+                endCrashGame(false); // User won
+            }
+        }
+
+        function runCrashGame() {
+            const crashPoint = (Math.random() * 5 + 1).toFixed(2); // Random crash between 1x and 6x
+            // Or make it fail instantly sometimes
+            const actualCrash = Math.random() > 0.3 ? crashPoint : (Math.random() * 1.5 + 1);
+
+            document.getElementById('crash-status').innerText = "ROCKET LAUNCHING...";
+            document.getElementById('crash-status').className = "text-white font-bold text-xs uppercase tracking-widest mt-2";
+
+            let startTime = Date.now();
+
+            crashInterval = setInterval(() => {
+                let elapsed = (Date.now() - startTime) / 1000;
+                crashMultiplier = 1 + (elapsed * elapsed * 0.1); // Exponential growth
+
+                if (crashMultiplier >= actualCrash) {
+                    crashMultiplier = actualCrash;
+                    endCrashGame(true); // Crashed
+                }
+
+                document.getElementById('crash-multiplier').innerText = crashMultiplier.toFixed(2) + 'x';
+                drawGraph(crashMultiplier);
+            }, 50);
+        }
+
+        function endCrashGame(crashed) {
+            clearInterval(crashInterval);
+            crashState = 'crashed';
+            
+            const btn = document.getElementById('crash-action-btn');
+            const status = document.getElementById('crash-status');
+            const multEl = document.getElementById('crash-multiplier');
+
+            if (crashed) {
+                btn.innerText = "TRY AGAIN";
+                btn.className = "w-full py-4 bg-rose-500 text-white font-black italic text-xl rounded-xl shadow-[0_0_20px_rgba(244,63,94,0.4)] hover:scale-[1.02] transition";
+                status.innerText = "ROCKET CRASHED!";
+                status.className = "text-rose-500 font-bold text-xs uppercase tracking-widest mt-2";
+                multEl.classList.add('text-rose-500');
+                currentBet = 0; // Lost bet
+            } else {
+                // User cashed out manually, game loop stops but we show idle
+                btn.innerText = "BET NOW";
+                btn.className = "w-full py-4 bg-cyan text-black font-black italic text-xl rounded-xl shadow-[0_0_20px_rgba(34,211,238,0.4)] hover:scale-[1.02] transition";
+                status.innerText = "Next round starting...";
+                status.className = "text-cyan font-bold text-xs uppercase tracking-widest mt-2";
+            }
+            
+            // Reset visuals after delay
+            if(crashed) {
+                 setTimeout(() => {
+                    crashState = 'idle';
+                    multEl.innerText = "1.00x";
+                    multEl.classList.remove('text-rose-500');
+                    multEl.classList.add('text-white');
+                    status.innerText = "Place your bet";
+                    status.className = "text-cyan font-bold text-xs uppercase tracking-widest mt-2 animate-pulse";
+                    btn.innerText = "BET NOW";
+                    btn.className = "w-full py-4 bg-cyan text-black font-black italic text-xl rounded-xl shadow-[0_0_20px_rgba(34,211,238,0.4)] hover:scale-[1.02] transition";
+                    drawGraph(1);
+                }, 3000);
+            }
+        }
+
+        function drawGraph(currentMult = 1) {
+            const w = crashCanvas.width;
+            const h = crashCanvas.height;
+            ctx.clearRect(0, 0, w, h);
+
+            // Grid
+            ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+            ctx.lineWidth = 1;
+            ctx.beginPath();
+            for(let i=0; i<w; i+=50) { ctx.moveTo(i,0); ctx.lineTo(i,h); }
+            for(let i=0; i<h; i+=50) { ctx.moveTo(0,i); ctx.lineTo(w,i); }
+            ctx.stroke();
+
+            if (currentMult > 1) {
+                // Curve
+                ctx.beginPath();
+                ctx.moveTo(0, h);
+                
+                // Simple quadratic curve simulation
+                const endX = Math.min(w, (currentMult - 1) * 100);
+                const endY = h - Math.min(h, (currentMult - 1) * 50);
+                
+                ctx.quadraticCurveTo(endX / 2, h, endX, endY);
+                ctx.strokeStyle = crashState === 'crashed' ? '#f43f5e' : '#22d3ee';
+                ctx.lineWidth = 4;
+                ctx.stroke();
+
+                // Rocket / Dot
+                ctx.fillStyle = crashState === 'crashed' ? '#f43f5e' : '#fff';
+                ctx.beginPath();
+                ctx.arc(endX, endY, 6, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        }
+
+        // --- INIT ---
+        window.addEventListener('load', () => {
+            const loader = document.getElementById('loader');
+            // Update Profile Name immediately
+            document.getElementById('profile-name').innerText = currentUser.username;
+            updateBalanceDisplay();
+
+            setTimeout(() => {
+                loader.style.opacity = '0';
+                setTimeout(() => { loader.style.display = 'none'; }, 500);
+            }, 1000);
+            
+            // Live Ticker
+            const ticker = document.getElementById('live-ticker');
+            function addWin() {
+                const games = ["Crash X", "Cyber Slots", "Plinko"];
+                const users = ["User88", "CryptoDad", "LuckyGal", "Whale_01"];
+                const amt = (Math.random() * 500).toFixed(2);
+                const div = document.createElement('div');
+                div.className = "flex justify-between items-center text-xs bg-white/5 p-2 rounded border border-white/5";
+                div.innerHTML = `<span class="text-gray-400">${users[Math.floor(Math.random()*users.length)]}</span> <span class="text-emerald-400 font-mono">+$${amt}</span>`;
+                ticker.prepend(div);
+                if(ticker.children.length > 3) ticker.lastChild.remove();
+            }
+            setInterval(addWin, 3000);
+        });
+    </script>
+</body>
+</html>
